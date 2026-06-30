@@ -3,6 +3,7 @@ enclave "default" {
     app_sources = [
       "https://codeberg.org/caution/demo-pq-enclave-binding"
     ]
+    cache = false
   }
 
   network {
