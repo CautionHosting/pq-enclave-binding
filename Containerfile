@@ -36,13 +36,18 @@ RUN --network=none <<-'EOF'
 	install -Dm755 "/target/${triple}/release/pq-ceremony" /pq-ceremony
 EOF
 
+# The public AWS Nitro root CA comes from the host build context, so git's
+# exec-bit-only tracking makes its checkout mode `0666 & ~umask` (0644 on a
+# umask-022 host, 0664 on umask-002). The enclave framework measures the app
+# image's modes verbatim, so an unpinned mode makes PCR0/1 depend on the build
+# host. Normalize it here, in-container, with a single chmod.
+COPY aws_nitro_root.der /tmp/aws_nitro_root.der
+RUN chmod 0644 /tmp/aws_nitro_root.der
+
 FROM scratch AS run
-# The binary and the pinned AWS Nitro root CA (public cert; committed to the repo).
-# Its SHA-256 is archived into every bundle this enclave emits.
+# Both plain copies from the build stage, where all modes are deterministic.
+# (Copying from the build stage — not the host context — also creates /app,
+# /etc, /etc/pq at the default 0755, so they stay traversable.)
 COPY --from=build /pq-ceremony /app/pq-ceremony
-# Pin the mode explicitly: git only records the exec bit, so the checked-out
-# file's mode is `0666 & ~umask` (0644 on a umask-022 host, 0664 on umask-002).
-# Docker COPY preserves the context mode, so leaving it unpinned makes the
-# measured initramfs (and thus PCR0/1) depend on the build host's umask.
-COPY --chmod=0644 aws_nitro_root.der /etc/pq/aws_nitro_root.der
+COPY --from=build /tmp/aws_nitro_root.der /etc/pq/aws_nitro_root.der
 ENTRYPOINT ["/app/pq-ceremony"]
