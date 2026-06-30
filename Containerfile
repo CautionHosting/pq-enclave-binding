@@ -40,5 +40,9 @@ FROM scratch AS run
 # The binary and the pinned AWS Nitro root CA (public cert; committed to the repo).
 # Its SHA-256 is archived into every bundle this enclave emits.
 COPY --from=build /pq-ceremony /app/pq-ceremony
-COPY aws_nitro_root.der /etc/pq/aws_nitro_root.der
+# Pin the mode explicitly: git only records the exec bit, so the checked-out
+# file's mode is `0666 & ~umask` (0644 on a umask-022 host, 0664 on umask-002).
+# Docker COPY preserves the context mode, so leaving it unpinned makes the
+# measured initramfs (and thus PCR0/1) depend on the build host's umask.
+COPY --chmod=0644 aws_nitro_root.der /etc/pq/aws_nitro_root.der
 ENTRYPOINT ["/app/pq-ceremony"]
