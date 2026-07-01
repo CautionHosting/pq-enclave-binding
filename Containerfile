@@ -36,9 +36,18 @@ RUN --network=none <<-'EOF'
 	install -Dm755 "/target/${triple}/release/pq-ceremony" /pq-ceremony
 EOF
 
+# Normalize the root CA's file mode in-container. A bare `COPY aws_nitro_root.der`
+# into the final image would carry the build host's umask mode (0644 on macOS,
+# 0664 on Caution's Linux builder) into the measured ramdisk — that single bit
+# changes PCR0/PCR1 between deploy and `caution verify` while the content is
+# identical. Setting it here (not via `COPY --chmod`, which also rewrites the
+# auto-created parent dirs) makes the mode deterministic across hosts.
+COPY aws_nitro_root.der /aws_nitro_root.der
+RUN chmod 0644 /aws_nitro_root.der
+
 FROM scratch AS run
 # The binary and the pinned AWS Nitro root CA (public cert; committed to the repo).
 # Its SHA-256 is archived into every bundle this enclave emits.
 COPY --from=build /pq-ceremony /app/pq-ceremony
-COPY aws_nitro_root.der /etc/pq/aws_nitro_root.der
+COPY --from=build /aws_nitro_root.der /etc/pq/aws_nitro_root.der
 ENTRYPOINT ["/app/pq-ceremony"]
