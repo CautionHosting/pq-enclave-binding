@@ -1,3 +1,5 @@
+This repository may be mirrored on other Git forges. The [canonical repository](https://git.caution.co/public/demo-pq-enclave-binding) is hosted on git.caution.co. Please open issues and pull requests there.
+
 # PQ Enclave Binding
 
 *Prove a post-quantum root keypair was born inside a specific AWS Nitro Enclave,
